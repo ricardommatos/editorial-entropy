@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editorial Entropy — TIME Particle Disintegration</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Instrument+Serif&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --border: #1e1e1e;
+            --border-hover: #333;
+            --text: #ffffff;
+            --text-dim: #999;
+            --text-muted: #666;
+            --accent: #fff;
+            --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+            --serif: 'Instrument Serif', Georgia, serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--mono);
+            background: var(--bg);
+            min-height: 100vh;
+            color: var(--text);
+            font-size: 11px;
+            letter-spacing: 0.02em;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 280px;
+            flex-shrink: 0;
+            background: var(--surface);
+            padding: 24px 20px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border-right: 1px solid var(--border);
+        }
+
+        .sidebar h1 {
+            font-family: var(--serif);
+            font-size: 26px;
+            font-weight: 400;
+            color: var(--accent);
+            margin-bottom: 4px;
+            letter-spacing: -0.01em;
+            font-style: italic;
+        }
+
+        .sidebar .subtitle {
+            color: var(--text-muted);
+            font-size: 10px;
+            margin-bottom: 32px;
+            line-height: 1.6;
+            font-weight: 300;
+        }
+
+        .control-section { margin-bottom: 28px; }
+
+        .control-section h3 {
+            font-size: 9px;
+            font-weight: 500;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        .control-section h3::before {
+            display: none;
+        }
+
+        .seed-input {
+            width: 100%;
+            background: var(--bg);
+            padding: 8px 10px;
+            border-radius: 3px;
+            font-family: var(--mono);
+            font-size: 12px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            text-align: center;
+            color: var(--text);
+            transition: border-color 0.15s;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--border-hover);
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        .regen-button { margin-bottom: 0; }
+
+        .control-group { margin-bottom: 16px; }
+
+        .control-group label {
+            display: block;
+            font-size: 10px;
+            font-weight: 400;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+            text-transform: lowercase;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+            border-radius: 0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 10px;
+            height: 10px;
+            background: var(--text-dim);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            background: var(--accent);
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 10px;
+            height: 10px;
+            background: var(--text-dim);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+
+        .value-display {
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--text-muted);
+            min-width: 48px;
+            text-align: right;
+        }
+
+        .button {
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            padding: 7px 12px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 400;
+            font-family: var(--mono);
+            cursor: pointer;
+            transition: all 0.15s;
+            width: 100%;
+            text-transform: lowercase;
+            letter-spacing: 0.04em;
+        }
+
+        .button:hover {
+            border-color: var(--border-hover);
+            color: var(--text);
+        }
+
+        .button:active { opacity: 0.7; }
+
+        .button.secondary { }
+        .button.secondary:hover { border-color: var(--border-hover); color: var(--text); }
+        .button.tertiary { }
+        .button.tertiary:hover { border-color: var(--border-hover); color: var(--text); }
+
+        .button-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .button-row .button { flex: 1; }
+
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+            padding: 20px;
+        }
+
+        #canvas-container {
+            width: 100%;
+            max-width: 1000px;
+            border-radius: 2px;
+            overflow: hidden;
+            background: var(--bg);
+        }
+
+        #canvas-container canvas {
+            display: block;
+            width: 100% !important;
+            height: auto !important;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 200px 20px;
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            text-transform: lowercase;
+        }
+
+        .drop-zone {
+            border: 1px dashed var(--border);
+            border-radius: 3px;
+            padding: 14px;
+            text-align: center;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .drop-zone:hover {
+            border-color: var(--border-hover);
+        }
+
+        .drop-zone p {
+            font-size: 10px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .drop-zone input { display: none; }
+
+        /* scrollbar */
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-track { background: transparent; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .presets-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .preset-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+
+        .preset-item:hover { border-color: var(--border-hover); }
+
+        .preset-item .preset-name {
+            flex: 1;
+            font-size: 10px;
+            color: var(--text-dim);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .preset-item .preset-seed {
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        .preset-item .preset-delete {
+            font-size: 9px;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0 2px;
+            transition: color 0.15s;
+        }
+
+        .preset-item .preset-delete:hover { color: #e55; }
+
+        .preset-empty {
+            font-size: 9px;
+            color: var(--text-muted);
+            padding: 6px 0;
+        }
+
+        @media (max-width: 600px) {
+            .container { flex-direction: column; }
+            .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Editorial Entropy</h1>
+            <div class="subtitle">print journalism dissolving into particles</div>
+
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="42" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button secondary" onclick="previousSeed()">prev</button>
+                    <button class="button secondary" onclick="nextSeed()">next</button>
+                </div>
+                <button class="button tertiary regen-button" onclick="randomSeedAndUpdate()">random</button>
+            </div>
+
+            <div class="control-section">
+                <h3>Source</h3>
+                <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                    <p>drop image or click to browse</p>
+                    <input type="file" id="fileInput" accept="image/*" onchange="handleFileUpload(event)">
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Parameters</h3>
+
+                <div class="control-group">
+                    <label>density</label>
+                    <div class="slider-container">
+                        <input type="range" id="density" min="4" max="12" step="1" value="6" oninput="updateParam('density', this.value)">
+                        <span class="value-display" id="density-value">6</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>entropy</label>
+                    <div class="slider-container">
+                        <input type="range" id="entropy" min="0.1" max="3.0" step="0.1" value="0.8" oninput="updateParam('entropy', this.value)">
+                        <span class="value-display" id="entropy-value">0.8</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>noise scale</label>
+                    <div class="slider-container">
+                        <input type="range" id="noiseScale" min="0.001" max="0.015" step="0.001" value="0.004" oninput="updateParam('noiseScale', this.value)">
+                        <span class="value-display" id="noiseScale-value">0.004</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>memory</label>
+                    <div class="slider-container">
+                        <input type="range" id="memory" min="0.0" max="0.05" step="0.005" value="0.01" oninput="updateParam('memory', this.value)">
+                        <span class="value-display" id="memory-value">0.010</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>particle size</label>
+                    <div class="slider-container">
+                        <input type="range" id="particleSize" min="1" max="6" step="0.5" value="2.5" oninput="updateParam('particleSize', this.value)">
+                        <span class="value-display" id="particleSize-value">2.5</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>fade speed</label>
+                    <div class="slider-container">
+                        <input type="range" id="fadeSpeed" min="1" max="30" step="1" value="8" oninput="updateParam('fadeSpeed', this.value)">
+                        <span class="value-display" id="fadeSpeed-value">8</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Presets</h3>
+                <div class="presets-list" id="presetsList"></div>
+                <div class="button-row" style="margin-bottom:6px;">
+                    <button class="button" onclick="savePreset()">save preset</button>
+                    <button class="button secondary" onclick="loadPresetFromClipboard()">import json</button>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <div class="button-row" style="margin-bottom:6px;">
+                    <button class="button" onclick="resetAndRegenerate()">regenerate</button>
+                    <button class="button secondary" onclick="resetParameters()">reset</button>
+                </div>
+                <button class="button tertiary" onclick="downloadPNG()">export .png</button>
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing Editorial Entropy...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════════
+        // PARAMETERS
+        // ═══════════════════════════════════════════════════════════════
+
+        let params = {
+            seed: 42,
+            density: 6,
+            entropy: 0.8,
+            noiseScale: 0.004,
+            memory: 0.01,
+            particleSize: 2.5,
+            fadeSpeed: 8
+        };
+
+        let defaultParams = {...params};
+
+        // ═══════════════════════════════════════════════════════════════
+        // STATE
+        // ═══════════════════════════════════════════════════════════════
+
+        let particles = [];
+        let sourceImg = null;
+        let imgPixels = null;
+        let imgW, imgH;
+        let canvasW = 900, canvasH = 900;
+        let frameCount = 0;
+        let isRunning = false;
+        let bgColor;
+        let particleCount = 0;
+
+        // Built-in TIME cover as colored rectangles (fallback)
+        let useFallback = true;
+
+        // ═══════════════════════════════════════════════════════════════
+        // IMAGE HANDLING
+        // ═══════════════════════════════════════════════════════════════
+
+        function handleFileUpload(e) {
+            let file = e.target.files[0];
+            if (!file) return;
+            let reader = new FileReader();
+            reader.onload = function(evt) {
+                loadImage(evt.target.result, function(img) {
+                    sourceImg = img;
+                    useFallback = false;
+                    resetAndRegenerate();
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Drag and drop
+        document.addEventListener('DOMContentLoaded', function() {
+            let dz = document.getElementById('dropZone');
+            dz.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                dz.style.borderColor = '#d97757';
+                dz.style.background = 'rgba(217,119,87,0.08)';
+            });
+            dz.addEventListener('dragleave', function(e) {
+                dz.style.borderColor = '';
+                dz.style.background = '';
+            });
+            dz.addEventListener('drop', function(e) {
+                e.preventDefault();
+                dz.style.borderColor = '';
+                dz.style.background = '';
+                if (e.dataTransfer.files.length > 0) {
+                    let file = e.dataTransfer.files[0];
+                    if (file.type.startsWith('image/')) {
+                        let reader = new FileReader();
+                        reader.onload = function(evt) {
+                            loadImage(evt.target.result, function(img) {
+                                sourceImg = img;
+                                useFallback = false;
+                                resetAndRegenerate();
+                            });
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                }
+            });
+        });
+
+        // ═══════════════════════════════════════════════════════════════
+        // FALLBACK: GENERATE A SYNTHETIC TIME COVER
+        // ═══════════════════════════════════════════════════════════════
+
+        function generateFallbackImage() {
+            let g = createGraphics(800, 1050);
+            g.background(0);
+
+            // Red border
+            g.noStroke();
+            g.fill(227, 6, 19);
+            g.rect(0, 0, 800, 1050);
+
+            // Inner black
+            g.fill(10, 10, 12);
+            g.rect(30, 30, 740, 990);
+
+            // Portrait area — dark gradient
+            for (let y = 200; y < 850; y++) {
+                let t = (y - 200) / 650;
+                let r = lerp(30, 80, t * t);
+                let gg = lerp(25, 60, t * t);
+                let b = lerp(40, 50, t * t);
+                g.stroke(r, gg, b);
+                g.line(120, y, 680, y);
+            }
+
+            // Face area — slightly lighter
+            g.noStroke();
+            for (let i = 0; i < 200; i++) {
+                let x = 300 + random(-120, 120);
+                let y = 400 + random(-150, 100);
+                let s = random(20, 60);
+                let a = random(5, 20);
+                g.fill(160, 130, 110, a);
+                g.ellipse(x, y, s, s * 1.2);
+            }
+
+            // TIME masthead
+            g.fill(255, 255, 255, 180);
+            g.textAlign(CENTER, CENTER);
+            g.textSize(140);
+            g.textStyle(BOLD);
+            g.text('TIME', 400, 160);
+
+            // Subhead
+            g.fill(255, 255, 255, 120);
+            g.textSize(28);
+            g.textStyle(NORMAL);
+            g.text('PERSON OF THE YEAR', 400, 70);
+
+            // Bottom text
+            g.fill(255, 255, 255, 100);
+            g.textSize(18);
+            g.text('time.com', 700, 1000);
+
+            return g;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // PARTICLE CLASS
+        // ═══════════════════════════════════════════════════════════════
+
+        class Particle {
+            constructor(ox, oy, col) {
+                this.originX = ox;
+                this.originY = oy;
+                this.x = ox;
+                this.y = oy;
+                this.vx = 0;
+                this.vy = 0;
+                this.col = col;
+                this.brightness = brightness(color(col[0], col[1], col[2]));
+                this.size = params.particleSize;
+                this.life = 1.0;
+                // Darker particles are heavier (move slower)
+                this.mass = map(this.brightness, 0, 100, 2.5, 0.5);
+            }
+
+            update(t) {
+                // Noise-driven force field
+                let ns = params.noiseScale;
+                let angle = noise(this.x * ns, this.y * ns, t * 0.3) * TWO_PI * 3;
+                let mag = noise(this.x * ns * 0.7, this.y * ns * 0.7, t * 0.2 + 100) * params.entropy;
+
+                // Force from flow field
+                let fx = cos(angle) * mag / this.mass;
+                let fy = sin(angle) * mag / this.mass;
+
+                // Memory: pull back toward origin — dark/dense pixels anchor much harder
+                let dx = this.originX - this.x;
+                let dy = this.originY - this.y;
+                let anchorStrength = params.memory * map(this.brightness, 0, 100, 4.0, 0.15);
+                fx += dx * anchorStrength;
+                fy += dy * anchorStrength;
+
+                // Edge turbulence — particles near edges dissolve faster
+                let edgeDistX = min(this.originX, canvasW - this.originX) / canvasW;
+                let edgeDistY = min(this.originY, canvasH - this.originY) / canvasH;
+                let edgeFactor = min(edgeDistX, edgeDistY) * 4;
+                edgeFactor = constrain(edgeFactor, 0.2, 1.0);
+
+                // Lighter pixels dissolve much more aggressively
+                let brightFactor = map(this.brightness, 0, 100, 0.2, 2.8);
+
+                this.vx += fx * brightFactor / edgeFactor;
+                this.vy += fy * brightFactor / edgeFactor;
+
+                // Damping — dark particles are stickier
+                let damping = map(this.brightness, 0, 100, 0.91, 0.97);
+                this.vx *= damping;
+                this.vy *= damping;
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Size varies with distance from origin
+                let distFromOrigin = sqrt((this.x - this.originX) * (this.x - this.originX) + (this.y - this.originY) * (this.y - this.originY));
+                this.size = params.particleSize * map(distFromOrigin, 0, 200, 1.0, 0.4, true);
+            }
+
+            isOffscreen() {
+                return this.x < -50 || this.x > canvasW + 50 || this.y < -50 || this.y > canvasH + 50;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // P5.JS SETUP & DRAW
+        // ═══════════════════════════════════════════════════════════════
+
+        function setup() {
+            let canvas = createCanvas(canvasW, canvasH);
+            canvas.parent('canvas-container');
+            document.querySelector('.loading').style.display = 'none';
+            bgColor = color(250, 249, 245);
+            pixelDensity(1);
+            frameRate(30);
+            initializeSystem();
+        }
+
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
+            particles = [];
+            frameCount = 0;
+            isRunning = true;
+
+            background(bgColor);
+
+            // Get source pixels
+            let src;
+            if (!useFallback && sourceImg) {
+                // Use uploaded image
+                let g = createGraphics(canvasW, canvasH);
+                // Fit image to canvas, centered
+                let scale = min(canvasW / sourceImg.width, canvasH / sourceImg.height) * 0.85;
+                let sw = sourceImg.width * scale;
+                let sh = sourceImg.height * scale;
+                let sx = (canvasW - sw) / 2;
+                let sy = (canvasH - sh) / 2;
+                g.background(250, 249, 245);
+                g.image(sourceImg, sx, sy, sw, sh);
+                src = g;
+            } else {
+                src = generateFallbackImage();
+                // Scale fallback to canvas
+                let g2 = createGraphics(canvasW, canvasH);
+                g2.background(250, 249, 245);
+                let scale = min(canvasW / 800, canvasH / 1050) * 0.85;
+                let sw = 800 * scale;
+                let sh = 1050 * scale;
+                let sx = (canvasW - sw) / 2;
+                let sy = (canvasH - sh) / 2;
+                g2.image(src, sx, sy, sw, sh);
+                src = g2;
+            }
+
+            src.loadPixels();
+
+            // Sample particles from image
+            let step = max(2, 14 - params.density);
+            for (let y = 0; y < canvasH; y += step) {
+                for (let x = 0; x < canvasW; x += step) {
+                    let idx = (y * canvasW + x) * 4;
+                    let r = src.pixels[idx];
+                    let g = src.pixels[idx + 1];
+                    let b = src.pixels[idx + 2];
+
+                    // Skip background-colored pixels
+                    if (r > 245 && g > 244 && b > 240) continue;
+
+                    // Small random offset for organic feel
+                    let ox = x + random(-step * 0.3, step * 0.3);
+                    let oy = y + random(-step * 0.3, step * 0.3);
+
+                    particles.push(new Particle(ox, oy, [r, g, b]));
+                }
+            }
+
+            // Shuffle for z-order variety
+            for (let i = particles.length - 1; i > 0; i--) {
+                let j = floor(random(i + 1));
+                [particles[i], particles[j]] = [particles[j], particles[i]];
+            }
+        }
+
+        function draw() {
+            if (!isRunning) return;
+
+            loadPixels();
+            let d = pixels;
+            let w4 = canvasW * 4;
+
+            // Fade toward background by blending each pixel
+            let fs = params.fadeSpeed * 0.016; // normalized fade
+            let bgR = 250, bgG = 249, bgB = 245;
+            for (let i = 0, len = d.length; i < len; i += 4) {
+                d[i]     += (bgR - d[i]) * fs;
+                d[i + 1] += (bgG - d[i + 1]) * fs;
+                d[i + 2] += (bgB - d[i + 2]) * fs;
+            }
+
+            let t = frameCount * 0.008;
+            let len = particles.length;
+
+            for (let i = len - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.update(t);
+
+                // Remove offscreen — swap with last element
+                if (p.isOffscreen()) {
+                    particles[i] = particles[len - 1];
+                    len--;
+                    continue;
+                }
+
+                // Draw as filled square into pixel buffer
+                let px = ~~p.x;
+                let py = ~~p.y;
+                let s = ~~(p.size * 0.5);
+                let dx = p.x - p.originX;
+                let dy = p.y - p.originY;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                let alpha = dist < 400 ? 1.0 - dist * 0.0015 : 0.16;
+                let r = p.col[0], g = p.col[1], b = p.col[2];
+
+                let yMin = Math.max(0, py - s);
+                let yMax = Math.min(canvasH - 1, py + s);
+                let xMin = Math.max(0, px - s);
+                let xMax = Math.min(canvasW - 1, px + s);
+
+                for (let y = yMin; y <= yMax; y++) {
+                    let row = y * w4;
+                    for (let x = xMin; x <= xMax; x++) {
+                        let idx = row + x * 4;
+                        d[idx]     = d[idx] + (r - d[idx]) * alpha;
+                        d[idx + 1] = d[idx + 1] + (g - d[idx + 1]) * alpha;
+                        d[idx + 2] = d[idx + 2] + (b - d[idx + 2]) * alpha;
+                    }
+                }
+            }
+
+            particles.length = len;
+            updatePixels();
+            frameCount++;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // UI HANDLERS
+        // ═══════════════════════════════════════════════════════════════
+
+        function updateParam(name, value) {
+            params[name] = parseFloat(value);
+            document.getElementById(name + '-value').textContent =
+                name === 'memory' ? parseFloat(value).toFixed(3) : value;
+        }
+
+        function resetAndRegenerate() {
+            initializeSystem();
+        }
+
+        function downloadPNG() {
+            saveCanvas('editorial_entropy_' + params.seed, 'png');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // SEED CONTROLS
+        // ═══════════════════════════════════════════════════════════════
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = {...defaultParams};
+            document.getElementById('density').value = params.density;
+            document.getElementById('density-value').textContent = params.density;
+            document.getElementById('entropy').value = params.entropy;
+            document.getElementById('entropy-value').textContent = params.entropy;
+            document.getElementById('noiseScale').value = params.noiseScale;
+            document.getElementById('noiseScale-value').textContent = params.noiseScale;
+            document.getElementById('memory').value = params.memory;
+            document.getElementById('memory-value').textContent = params.memory.toFixed(3);
+            document.getElementById('particleSize').value = params.particleSize;
+            document.getElementById('particleSize-value').textContent = params.particleSize;
+            document.getElementById('fadeSpeed').value = params.fadeSpeed;
+            document.getElementById('fadeSpeed-value').textContent = params.fadeSpeed;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // PRESETS (localStorage)
+        // ═══════════════════════════════════════════════════════════════
+
+        const PRESETS_KEY = 'editorial_entropy_presets';
+
+        function getPresets() {
+            try { return JSON.parse(localStorage.getItem(PRESETS_KEY)) || []; }
+            catch { return []; }
+        }
+
+        function savePresets(presets) {
+            localStorage.setItem(PRESETS_KEY, JSON.stringify(presets));
+        }
+
+        function renderPresets() {
+            let list = document.getElementById('presetsList');
+            let presets = getPresets();
+            if (presets.length === 0) {
+                list.innerHTML = '<div class="preset-empty">no saved presets</div>';
+                return;
+            }
+            list.innerHTML = presets.map((p, i) => `
+                <div class="preset-item" onclick="loadPreset(${i})">
+                    <span class="preset-name">${p.name}</span>
+                    <span class="preset-seed">#${p.params.seed}</span>
+                    <span class="preset-delete" onclick="event.stopPropagation(); deletePreset(${i})">x</span>
+                </div>
+            `).join('');
+        }
+
+        function savePreset() {
+            let name = prompt('preset name:');
+            if (!name || !name.trim()) return;
+            let presets = getPresets();
+            presets.push({ name: name.trim(), params: {...params} });
+            savePresets(presets);
+            renderPresets();
+        }
+
+        function loadPreset(index) {
+            let presets = getPresets();
+            if (!presets[index]) return;
+            let saved = presets[index].params;
+            params = {...saved};
+            // sync UI
+            ['density','entropy','noiseScale','memory','particleSize','fadeSpeed'].forEach(k => {
+                document.getElementById(k).value = params[k];
+                document.getElementById(k + '-value').textContent =
+                    k === 'memory' ? params[k].toFixed(3) : params[k];
+            });
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function deletePreset(index) {
+            let presets = getPresets();
+            presets.splice(index, 1);
+            savePresets(presets);
+            renderPresets();
+        }
+
+        function loadPresetFromClipboard() {
+            let json = prompt('paste preset json:');
+            if (!json) return;
+            try {
+                let data = JSON.parse(json);
+                if (data.params) {
+                    let presets = getPresets();
+                    presets.push({ name: data.name || 'imported', params: data.params });
+                    savePresets(presets);
+                    renderPresets();
+                    loadPreset(presets.length - 1);
+                }
+            } catch { alert('invalid json'); }
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+            renderPresets();
+        });
+    </script>
+</body>
+</html>
