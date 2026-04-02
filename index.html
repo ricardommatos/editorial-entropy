@@ -450,6 +450,8 @@
         let isRunning = false;
         let bgColor;
         let particleCount = 0;
+        let hasTransparency = false;
+        let waitingForStart = true;
 
         // Built-in TIME cover as colored rectangles (fallback)
         let useFallback = true;
@@ -457,6 +459,18 @@
         // ═══════════════════════════════════════════════════════════════
         // IMAGE HANDLING
         // ═══════════════════════════════════════════════════════════════
+
+        function detectTransparency(img) {
+            let g = createGraphics(img.width, img.height);
+            g.clear();
+            g.image(img, 0, 0);
+            g.loadPixels();
+            for (let i = 3; i < g.pixels.length; i += 4) {
+                if (g.pixels[i] < 250) { g.remove(); return true; }
+            }
+            g.remove();
+            return false;
+        }
 
         function handleFileUpload(e) {
             let file = e.target.files[0];
@@ -466,7 +480,8 @@
                 loadImage(evt.target.result, function(img) {
                     sourceImg = img;
                     useFallback = false;
-                    resetAndRegenerate();
+                    hasTransparency = detectTransparency(img);
+                    showStaticPreview();
                 });
             };
             reader.readAsDataURL(file);
@@ -496,7 +511,8 @@
                             loadImage(evt.target.result, function(img) {
                                 sourceImg = img;
                                 useFallback = false;
-                                resetAndRegenerate();
+                                hasTransparency = detectTransparency(img);
+                                showStaticPreview();
                             });
                         };
                         reader.readAsDataURL(file);
@@ -642,7 +658,42 @@
             bgColor = color(250, 249, 245);
             pixelDensity(1);
             frameRate(30);
-            initializeSystem();
+            // Don't auto-start — show static image, wait for regenerate
+            showStaticPreview();
+        }
+
+        function showStaticPreview() {
+            waitingForStart = true;
+            isRunning = false;
+            particles = [];
+            frameCount = 0;
+
+            // Draw the source image statically on canvas
+            let src;
+            if (!useFallback && sourceImg) {
+                let g = createGraphics(canvasW, canvasH);
+                if (hasTransparency) { g.clear(); } else { g.background(250, 249, 245); }
+                let scale = min(canvasW / sourceImg.width, canvasH / sourceImg.height) * 0.85;
+                let sw = sourceImg.width * scale;
+                let sh = sourceImg.height * scale;
+                let sx = (canvasW - sw) / 2;
+                let sy = (canvasH - sh) / 2;
+                g.image(sourceImg, sx, sy, sw, sh);
+                if (hasTransparency) { clear(); } else { background(bgColor); }
+                image(g, 0, 0);
+            } else {
+                src = generateFallbackImage();
+                let g2 = createGraphics(canvasW, canvasH);
+                g2.background(250, 249, 245);
+                let scale = min(canvasW / 800, canvasH / 1050) * 0.85;
+                let sw = 800 * scale;
+                let sh = 1050 * scale;
+                let sx = (canvasW - sw) / 2;
+                let sy = (canvasH - sh) / 2;
+                g2.image(src, sx, sy, sw, sh);
+                background(bgColor);
+                image(g2, 0, 0);
+            }
         }
 
         function initializeSystem() {
@@ -650,27 +701,25 @@
             noiseSeed(params.seed);
             particles = [];
             frameCount = 0;
+            waitingForStart = false;
             isRunning = true;
 
-            background(bgColor);
+            if (hasTransparency) { clear(); } else { background(bgColor); }
 
             // Get source pixels
             let src;
             if (!useFallback && sourceImg) {
-                // Use uploaded image
                 let g = createGraphics(canvasW, canvasH);
-                // Fit image to canvas, centered
+                if (hasTransparency) { g.clear(); } else { g.background(250, 249, 245); }
                 let scale = min(canvasW / sourceImg.width, canvasH / sourceImg.height) * 0.85;
                 let sw = sourceImg.width * scale;
                 let sh = sourceImg.height * scale;
                 let sx = (canvasW - sw) / 2;
                 let sy = (canvasH - sh) / 2;
-                g.background(250, 249, 245);
                 g.image(sourceImg, sx, sy, sw, sh);
                 src = g;
             } else {
                 src = generateFallbackImage();
-                // Scale fallback to canvas
                 let g2 = createGraphics(canvasW, canvasH);
                 g2.background(250, 249, 245);
                 let scale = min(canvasW / 800, canvasH / 1050) * 0.85;
@@ -684,7 +733,7 @@
 
             src.loadPixels();
 
-            // Sample particles from image
+            // Sample particles from image — also read alpha
             let step = max(2, 14 - params.density);
             for (let y = 0; y < canvasH; y += step) {
                 for (let x = 0; x < canvasW; x += step) {
@@ -692,11 +741,13 @@
                     let r = src.pixels[idx];
                     let g = src.pixels[idx + 1];
                     let b = src.pixels[idx + 2];
+                    let a = src.pixels[idx + 3];
 
-                    // Skip background-colored pixels
-                    if (r > 245 && g > 244 && b > 240) continue;
+                    // Skip transparent pixels
+                    if (a < 10) continue;
+                    // Skip background-colored pixels (only when not transparent mode)
+                    if (!hasTransparency && r > 245 && g > 244 && b > 240) continue;
 
-                    // Small random offset for organic feel
                     let ox = x + random(-step * 0.3, step * 0.3);
                     let oy = y + random(-step * 0.3, step * 0.3);
 
@@ -718,13 +769,19 @@
             let d = pixels;
             let w4 = canvasW * 4;
 
-            // Fade toward background by blending each pixel
-            let fs = params.fadeSpeed * 0.016; // normalized fade
-            let bgR = 250, bgG = 249, bgB = 245;
-            for (let i = 0, len = d.length; i < len; i += 4) {
-                d[i]     += (bgR - d[i]) * fs;
-                d[i + 1] += (bgG - d[i + 1]) * fs;
-                d[i + 2] += (bgB - d[i + 2]) * fs;
+            // Fade toward background (or toward transparent)
+            let fs = params.fadeSpeed * 0.016;
+            if (hasTransparency) {
+                for (let i = 0, len = d.length; i < len; i += 4) {
+                    d[i + 3] -= d[i + 3] * fs; // fade alpha toward 0
+                }
+            } else {
+                let bgR = 250, bgG = 249, bgB = 245;
+                for (let i = 0, len = d.length; i < len; i += 4) {
+                    d[i]     += (bgR - d[i]) * fs;
+                    d[i + 1] += (bgG - d[i + 1]) * fs;
+                    d[i + 2] += (bgB - d[i + 2]) * fs;
+                }
             }
 
             let t = frameCount * 0.008;
@@ -763,6 +820,9 @@
                         d[idx]     = d[idx] + (r - d[idx]) * alpha;
                         d[idx + 1] = d[idx + 1] + (g - d[idx + 1]) * alpha;
                         d[idx + 2] = d[idx + 2] + (b - d[idx + 2]) * alpha;
+                        if (hasTransparency) {
+                            d[idx + 3] = Math.min(255, d[idx + 3] + alpha * 255);
+                        }
                     }
                 }
             }
@@ -787,7 +847,38 @@
         }
 
         function downloadPNG() {
-            saveCanvas('editorial_entropy_' + params.seed, 'png');
+            // Render at 3x resolution
+            let scale = 3;
+            let expW = canvasW * scale;
+            let expH = canvasH * scale;
+            let exp = createGraphics(expW, expH);
+            if (hasTransparency) { exp.clear(); } else { exp.background(250, 249, 245); }
+
+            // Read current canvas pixels and paint them scaled up
+            loadPixels();
+            exp.loadPixels();
+            let src = pixels;
+            let dst = exp.pixels;
+            for (let y = 0; y < canvasH; y++) {
+                for (let x = 0; x < canvasW; x++) {
+                    let si = (y * canvasW + x) * 4;
+                    let r = src[si], g = src[si+1], b = src[si+2], a = src[si+3];
+                    for (let dy = 0; dy < scale; dy++) {
+                        for (let dx = 0; dx < scale; dx++) {
+                            let di = ((y * scale + dy) * expW + (x * scale + dx)) * 4;
+                            dst[di] = r; dst[di+1] = g; dst[di+2] = b; dst[di+3] = a;
+                        }
+                    }
+                }
+            }
+            exp.updatePixels();
+
+            // Download
+            let link = document.createElement('a');
+            link.download = 'editorial_entropy_' + params.seed + '_3x.png';
+            link.href = exp.canvas.toDataURL('image/png');
+            link.click();
+            exp.remove();
         }
 
         // ═══════════════════════════════════════════════════════════════
